@@ -1,0 +1,21 @@
+# Compiled files
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+
+# logs
+*.log
+
+# Directories
+.terraform/
+terraform.tfstate.d/
+
+# SSH Keys
+*.pem
+
+# Backup files
+*.bak
+
+# Variable Files
+terraform.tfvars
+terraform.tfvars.json
