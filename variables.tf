@@ -42,6 +42,12 @@ variable "labels" {
   default     = {}
 }
 
+variable "service_account_name" {
+  type        = string
+  description = "Service account name to add to the pod"
+  default     = ""
+}
+
 variable "ports" {
   type        = any
   description = "Ports to expose from container"
