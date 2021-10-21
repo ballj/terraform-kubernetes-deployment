@@ -180,6 +180,16 @@ resource "kubernetes_deployment" "deployment" {
               }
             }
           }
+          resources {
+            limits = {
+              cpu    = var.resources_limits_cpu
+              memory = var.resources_limits_memory
+            }
+            requests = {
+              cpu    = var.resources_requests_cpu
+              memory = var.resources_requests_memory
+            }
+          }
           dynamic "port" {
             for_each = var.ports
             content {

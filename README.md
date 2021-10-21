@@ -68,6 +68,10 @@ module "deployment" {
 | `timeout_create`                            | No       | `3m`             | Timeout for creating the deployment                |
 | `timeout_update`                            | No       | `3m`             | Timeout for updating the deployment                |
 | `timeout_delete`                            | No       | `10m`            | Timeout for deleting the deployment                |
+| `resources_requests_cpu`                    | No       | `null`           | The minimum amount of compute resources required   |
+| `resources_requests_memory`                 | No       | `null`           | The minimum amount of compute resources required   |
+| `resources_limits_cpu`                      | No       | `null`           | The maximum amount of compute resources allowed    |
+| `resources_limits_memory`                   | No       | `null`           | The maximum amount of compute resources allowed    |
 | `ports`                                     | No       | `[]`             | List of ports to configure - see example           |
 | `service_account_name`                      | No       | `""`             | Service account to attach to the pod               |
 | `replicas`                                  | No       | `1`              | Amount of pods to deploy as part of deployment     |
