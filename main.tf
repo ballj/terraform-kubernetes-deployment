@@ -164,7 +164,10 @@ resource "kubernetes_deployment" "deployment" {
                     host = var.post_start_host
                     dynamic "http_header" {
                       for_each = length(var.post_start_http_header) > 0 ? var.post_start_http_header : []
-                      content {}
+                      content {
+                        name  = http_header.value["name"]
+                        value = http_header.value["value"]
+                      }
                     }
                     path   = var.post_start_path
                     port   = var.post_start_port > 0 ? var.post_start_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.post_start_scheme), var.ports[0].container_port)
@@ -241,7 +244,10 @@ resource "kubernetes_deployment" "deployment" {
                   host = var.readiness_probe_host
                   dynamic "http_header" {
                     for_each = length(var.readiness_probe_http_header) > 0 ? var.readiness_probe_http_header : []
-                    content {}
+                    content {
+                      name  = http_header.value["name"]
+                      value = http_header.value["value"]
+                    }
                   }
                   path   = var.readiness_probe_path
                   port   = var.readiness_probe_port > 0 ? var.readiness_probe_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.readiness_probe_scheme), var.ports[0].container_port)
@@ -276,7 +282,10 @@ resource "kubernetes_deployment" "deployment" {
                   host = var.liveness_probe_host
                   dynamic "http_header" {
                     for_each = length(var.liveness_probe_http_header) > 0 ? var.liveness_probe_http_header : []
-                    content {}
+                    content {
+                      name  = http_header.value["name"]
+                      value = http_header.value["value"]
+                    }
                   }
                   path   = var.liveness_probe_path
                   port   = var.liveness_probe_port > 0 ? var.liveness_probe_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.liveness_probe_scheme), var.ports[0].container_port)
@@ -311,7 +320,10 @@ resource "kubernetes_deployment" "deployment" {
                   host = var.startup_probe_host
                   dynamic "http_header" {
                     for_each = length(var.startup_probe_http_header) > 0 ? var.startup_probe_http_header : []
-                    content {}
+                    content {
+                      name  = http_header.value["name"]
+                      value = http_header.value["value"]
+                    }
                   }
                   path   = var.startup_probe_path
                   port   = var.startup_probe_port > 0 ? var.startup_probe_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.startup_probe_scheme), var.ports[0].container_port)

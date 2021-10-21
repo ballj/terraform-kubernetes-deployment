@@ -233,7 +233,10 @@ variable "post_start_path" {
 }
 
 variable "post_start_http_header" {
-  type        = list(string)
+  type = list(object({
+    name  = string
+    value = string
+  }))
   description = "HTTP headers for the http_get request"
   default     = []
 }
@@ -311,7 +314,10 @@ variable "readiness_probe_path" {
 }
 
 variable "readiness_probe_http_header" {
-  type        = list(string)
+  type = list(object({
+    name  = string
+    value = string
+  }))
   description = "HTTP headers for the http_get probe"
   default     = []
 }
@@ -388,7 +394,10 @@ variable "liveness_probe_path" {
 }
 
 variable "liveness_probe_http_header" {
-  type        = list(string)
+  type = list(object({
+    name  = string
+    value = string
+  }))
   description = "HTTP headers for the http_get probe"
   default     = []
 }
@@ -465,7 +474,10 @@ variable "startup_probe_path" {
 }
 
 variable "startup_probe_http_header" {
-  type        = list(string)
+  type = list(object({
+    name  = string
+    value = string
+  }))
   description = "HTTP headers for the http_get probe"
   default     = []
 }
