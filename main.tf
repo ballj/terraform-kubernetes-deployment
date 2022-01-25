@@ -142,6 +142,22 @@ resource "kubernetes_deployment" "deployment" {
             }
           }
         }
+        dynamic "init_container" {
+          for_each = length(var.connectivity_check) > 0 ? var.connectivity_check : []
+          content {
+            name  = format("connectivity-%s", contains(keys(init_container.value), "name") ? init_container.value["name"] : replace(init_container.value["hostname"], ".", "-"))
+            image = format("%s:%s", var.init_connectivity_image_name, var.init_connectivity_image_tag)
+            security_context {
+              run_as_user = 1000
+            }
+            image_pull_policy = var.init_connectivity_image_pull_policy
+            command = [
+              "bash", "-c", join(" ", ["timeout", lookup(init_container.value, "timout", 30), "bash -c", 
+              format("'until nc -vz -w1 %s %s 2>/dev/null; do date && sleep 1; done'", init_container.value["hostname"], init_container.value["port"]),
+              format("; nc -vz -w1 %s %s", init_container.value["hostname"], init_container.value["port"])])
+            ]
+          }
+        }
         container {
           image             = format("%s:%s", var.image_name, var.image_tag)
           name              = regex("[[:alnum:]]+$", var.image_name)

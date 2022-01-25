@@ -568,3 +568,32 @@ variable "init_customca_env_secret" {
   description = "Env secrets to use for the init container"
   default     = []
 }
+
+variable "connectivity_check" {
+  type = list(object({
+    name     = string
+    hostname = string
+    port     = string
+    timeout  = number
+  }))
+  description = "Env secrets to use for the init container"
+  default     = []
+}
+
+variable "init_connectivity_image_name" {
+  type        = string
+  description = "Tag to use for the init container"
+  default     = "bash"
+}
+
+variable "init_connectivity_image_tag" {
+  type        = string
+  description = "Tag to use for the init container"
+  default     = "4.4"
+}
+
+variable "init_connectivity_image_pull_policy" {
+  type        = string
+  description = "Pull policy to use for the init container"
+  default     = "IfNotPresent"
+}

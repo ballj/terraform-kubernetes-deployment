@@ -89,6 +89,7 @@ module "deployment" {
 | `security_context_uid`                      | No       | `1000`           | User to run deployment as                          |
 | `security_context_uid`                      | No       | `1000`           | Group to run deployment as                         |
 | `custom_certificate_authority`              | No       | `[]`             | Certificate authorities to add to image            |
+| `connectivity_check`                        | No       | `[]`             | Hostnames to check connectivity to                 |
 | `command`                                   | No       | `[]`             | List of commands to run as entrypoint              |
 | `arguments`                                 | No       | `[]`             | Arguments to the entrypoint                        |
 | `env`                                       | No       | `{}`             | Environment variables to add                       |
@@ -153,6 +154,15 @@ module "deployment" {
 | ------------------------------------------- | -------- | -------          | -------------------------------------------------- |
 | `init_customca_image_name`                  | No       | `alpine`         | Image name of the init volume                      |
 | `init_customca_image_tag`                   | No       | N/A              | Tag of the init volume                             |
+| `init_customca_image_pull_policy`           | No       | N/A              | Pull policy for the init volume                    |
+| `init_customca_env_secret`                  | No       | N/A              | Secrets to add into the init container - eg proxy  |
+
+#### Custom Certificates
+
+| Variable                                    | Required | Default          | Description                                        |
+| ------------------------------------------- | -------- | -------          | -------------------------------------------------- |
+| `init_connectivity_image_name`              | No       | `alpine`         | Image name of the init volume                      |
+| `init_connectivity_image_tag`               | No       | N/A              | Tag of the init volume                             |
 | `init_customca_image_pull_policy`           | No       | N/A              | Pull policy for the init volume                    |
 | `init_customca_env_secret`                  | No       | N/A              | Secrets to add into the init container - eg proxy  |
 
@@ -261,6 +271,22 @@ secret name in the variable:
 
 ```bash
 custom_certificate_authority = [ "my-ca", "my-ca-2" ]
+```
+
+## Connectivity Check
+
+Pass a list of hostnames to check and the service will wait for these to be
+available before coming up.
+
+```bash
+connectivity_check = [
+  {
+    name     = "google"
+    hostname = "www.google.com"
+    port     = 443
+    timeout  = 30
+  }
+]
 ```
 
 ## Notes
