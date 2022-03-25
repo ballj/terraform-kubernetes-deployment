@@ -218,13 +218,6 @@ resource "kubernetes_deployment" "deployment" {
             }
           }
           dynamic "env" {
-            for_each = var.env
-            content {
-              name  = env.key
-              value = env.value
-            }
-          }
-          dynamic "env" {
             for_each = [for env_var in var.env_secret : {
               name   = env_var.name
               secret = env_var.secret
@@ -238,6 +231,13 @@ resource "kubernetes_deployment" "deployment" {
                   key  = env.value["key"]
                 }
               }
+            }
+          }
+          dynamic "env" {
+            for_each = var.env
+            content {
+              name  = env.key
+              value = env.value
             }
           }
           dynamic "readiness_probe" {
