@@ -150,6 +150,22 @@ variable "security_context_gid" {
   default     = 1000
 }
 
+variable "security_context_container_enabled" {
+  type        = bool
+  description = "Enable the security context at container level"
+  default     = false
+}
+
+variable "security_context_container_capabilities_add" {
+  description = "Added capabilities"
+  default = null
+}
+
+variable "security_context_container_capabilities_drop" {
+  description = "Removed capabilities"
+  default = null
+}
+
 variable "custom_certificate_authority" {
   type        = list(string)
   description = "Certificate authorities to add to image"

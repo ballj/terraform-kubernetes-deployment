@@ -199,6 +199,15 @@ resource "kubernetes_deployment" "deployment" {
               }
             }
           }
+          dynamic "security_context" {
+            for_each = var.security_context_container_enabled ? [1] : []
+            content {
+              capabilities {
+                add = var.security_context_container_capabilities_add
+                drop = var.security_context_container_capabilities_drop
+              }
+            }
+          }
           resources {
             limits = {
               cpu    = var.resources_limits_cpu
