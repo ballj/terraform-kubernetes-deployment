@@ -74,6 +74,7 @@ module "deployment" {
 | `resources_limits_memory`                      | No       | `null`           | The maximum amount of compute resources allowed    |
 | `ports`                                        | No       | `[]`             | List of ports to configure - see example           |
 | `service_account_name`                         | No       | `""`             | Service account to attach to the pod               |
+| `subdomain`                                    | No       | `""`             | Subdomain for the pod                              |
 | `replicas`                                     | No       | `1`              | Amount of pods to deploy as part of deployment     |
 | `pull_policy`                                  | No       | `IfNotPresent`   | Pull policy for the image                          |
 | `annotations`                                  | No       | `{}`             | Annotations to add to the deployment               |

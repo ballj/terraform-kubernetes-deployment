@@ -58,6 +58,7 @@ resource "kubernetes_deployment" "deployment" {
       }
       spec {
         service_account_name = length(var.service_account_name) > 0 ? var.service_account_name : null
+        subdomain = var.subdomain
         dynamic "init_container" {
           for_each = alltrue([var.init_volume_permissions_enabled, length(var.volumes) > 0]) ? [1] : []
           content {

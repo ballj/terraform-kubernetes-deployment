@@ -48,6 +48,12 @@ variable "service_account_name" {
   default     = ""
 }
 
+variable "subdomain" {
+  type        = string
+  description = "Subdomain for the pod"
+  default     = ""
+}
+
 variable "ports" {
   type        = any
   description = "Ports to expose from container"
