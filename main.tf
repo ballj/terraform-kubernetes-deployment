@@ -20,7 +20,7 @@ locals {
   })
 }
 
-resource "kubernetes_deployment" "deployment" {
+resource "kubernetes_deployment_v1" "deployment" {
   timeouts {
     create = var.timeout_create
     update = var.timeout_update
@@ -58,7 +58,14 @@ resource "kubernetes_deployment" "deployment" {
       }
       spec {
         service_account_name = length(var.service_account_name) > 0 ? var.service_account_name : null
+        node_selector = var.node_selector
         subdomain = var.subdomain
+        dynamic "image_pull_secrets" {
+          for_each = {for v in var.image_pull_secrets : v => v}
+          content {
+            name = image_pull_secrets.key
+          }
+        }
         dynamic "init_container" {
           for_each = alltrue([var.init_volume_permissions_enabled, length(var.volumes) > 0]) ? [1] : []
           content {
@@ -153,7 +160,7 @@ resource "kubernetes_deployment" "deployment" {
             }
             image_pull_policy = var.init_connectivity_image_pull_policy
             command = [
-              "bash", "-c", join(" ", ["timeout", lookup(init_container.value, "timout", 30), "bash -c", 
+              "bash", "-c", join(" ", ["timeout", lookup(init_container.value, "timout", 30), "bash -c",
               format("'until nc -vz -w1 %s %s 2>/dev/null; do date && sleep 1; done'", init_container.value["hostname"], init_container.value["port"]),
               format("; nc -vz -w1 %s %s", init_container.value["hostname"], init_container.value["port"])])
             ]
@@ -225,6 +232,14 @@ resource "kubernetes_deployment" "deployment" {
               name           = port.value["name"]
               protocol       = port.value["protocol"]
               container_port = port.value["container_port"]
+            }
+          }
+          env {
+            name = "POD_IP"
+            value_from {
+              field_ref {
+                field_path = "status.podIP"
+              }
             }
           }
           dynamic "env" {
@@ -473,7 +488,7 @@ resource "kubernetes_deployment" "deployment" {
   }
 }
 
-resource "kubernetes_service" "deployment" {
+resource "kubernetes_service_v1" "deployment" {
   count = length(var.ports) > 0 ? 1 : 0
   metadata {
     namespace   = var.namespace
