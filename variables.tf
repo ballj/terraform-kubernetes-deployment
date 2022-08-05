@@ -19,8 +19,8 @@ variable "image_tag" {
 }
 
 variable "image_pull_secrets" {
-  type = list(string)
-  default = []
+  type        = list(string)
+  default     = []
   description = "List of pull secrets for the docker image"
 }
 
@@ -61,7 +61,7 @@ variable "subdomain" {
 }
 
 variable "ports" {
-  type        = list(object({
+  type = list(object({
     name           = string
     protocol       = string
     container_port = number
@@ -175,12 +175,12 @@ variable "security_context_container_enabled" {
 
 variable "security_context_container_capabilities_add" {
   description = "Added capabilities"
-  default = null
+  default     = null
 }
 
 variable "security_context_container_capabilities_drop" {
   description = "Removed capabilities"
-  default = null
+  default     = null
 }
 
 variable "custom_certificate_authority" {
@@ -633,8 +633,19 @@ variable "init_connectivity_image_pull_policy" {
 
 
 variable "node_selector" {
-  type = map(string)
-  default = {}
+  type        = map(string)
+  default     = {}
   description = "Node selector to use for the deployment"
 }
 
+variable "pre_install_job_command" {
+  type        = list(string)
+  default     = []
+  description = "Command for pre-install job"
+}
+
+variable "pre_install_job_args" {
+  type        = list(string)
+  default     = []
+  description = "Args for pre install install job"
+}

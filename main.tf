@@ -21,11 +21,14 @@ locals {
 }
 
 resource "kubernetes_deployment_v1" "deployment" {
+  depends_on = [kubernetes_job_v1.pre_install]
+
   timeouts {
     create = var.timeout_create
     update = var.timeout_update
     delete = var.timeout_delete
   }
+
   metadata {
     namespace   = var.namespace
     name        = var.object_prefix
