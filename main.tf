@@ -459,7 +459,7 @@ resource "kubernetes_deployment" "deployment" {
           content {
             name = "custom-ca-certificates"
             projected {
-              default_mode = "0400"
+              default_mode = "0444"
               sources {
                 secret {
                   name = volume.value
