@@ -6,8 +6,10 @@ This terraform module deploys a deployment on kubernetes and adds a service.
 
 ```
 module "deployment" {
-  source              = "ballj/mariadb/kubernetes"
-  version             = "~> 1.0"
+  source              = "ballj/deployment/kubernetes"
+  version             = "~> 1.5.1"
+  image_name          = "nginx"
+  image_tag           = "latest"
   namespace           = "production"
   object_prefix       = "nginx"
   ports               = [
@@ -29,7 +31,7 @@ module "deployment" {
     type         = "persistent_volume_claim"
     object_name  = "nginx"
     readonly     = false
-    mount = [{
+    mounts = [{
       mount_path = "/usr/share/nginx/html"
     }]
   }]
@@ -222,38 +224,38 @@ Persistance is achieved by mounting PVCs into the container. This is achieve by
 the following variables:
 
 ```bash
-volumes   = [{
-  name         = "html"
-  type         = "persistent_volume_claim"
-  object_name  = "nginx"
-  mounts = [{
-    mount_path = "/usr/share/nginx"
-  }]
-},
-{
-  name         = "config"
-  type         = "persistent_volume_claim"
-  object_name  = "nginx-config"
-  mounts = [{
-    mount_path = "/etc/nginx"
-    sub_path   = "nginx.conf"
-    read_only  = true
+volumes   = [
+  {
+    name         = "html"
+    type         = "persistent_volume_claim"
+    object_name  = "nginx"
+    mounts = [{
+      mount_path = "/usr/share/nginx"
+    }]
   },
   {
-    mount_path = "/etc/nginx"
-    sub_path   = "extra.conf"
-    read_only  = true
-  }]
-},
-{
-  name         = "logs"
-  type         = "persistent_volume_claim"
-  object_name  = "nginx-logs"
-  readonly     = false
-  mounts = [{
-  mount_path = "/var/logs"
-  }]
-}]
+    name         = "config"
+    type         = "persistent_volume_claim"
+    object_name  = "nginx-config"
+    mounts = [{
+      mount_path = "/etc/nginx"
+      sub_path   = "nginx.conf"
+      read_only  = true
+    },
+    {
+      mount_path = "/etc/nginx"
+      sub_path   = "extra.conf"
+      read_only  = true
+    }]
+  },
+  {
+    name         = "logs"
+    type         = "persistent_volume_claim"
+    object_name  = "nginx-logs"
+    readonly     = false
+    mounts = [{ mount_path = "/var/logs" }]
+  }
+]
 ```
 
 ### Supported Volume Types
