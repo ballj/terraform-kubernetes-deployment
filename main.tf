@@ -209,14 +209,25 @@ resource "kubernetes_deployment" "deployment" {
               }
             }
           }
-          resources {
-            limits = {
-              cpu    = var.resources_limits_cpu
-              memory = var.resources_limits_memory
-            }
-            requests = {
-              cpu    = var.resources_requests_cpu
-              memory = var.resources_requests_memory
+          dynamic "resources" {
+            for_each = length(var.resources_limits_cpu) > 0 || length(var.resources_limits_memory) > 0 || length(var.resources_requests_cpu) > 0 || length(var.resources_requests_memory) > 0 ? [1] : []
+            content {
+              limits = length(var.resources_limits_cpu) > 0 && length(var.resources_limits_memory) > 0 ? {
+                cpu    = var.resources_limits_cpu
+                memory = var.resources_limits_memory
+                } : length(var.resources_limits_cpu) > 0 ? {
+                cpu = var.resources_limits_cpu
+                } : length(var.resources_limits_memory) > 0 ? {
+                memory = var.resources_limits_memory
+              } : {}
+              requests = length(var.resources_requests_cpu) > 0 && length(var.resources_requests_memory) > 0 ? {
+                cpu    = var.resources_requests_cpu
+                memory = var.resources_requests_memory
+                } : length(var.resources_limits_cpu) > 0 ? {
+                cpu = var.resources_requests_cpu
+                } : length(var.resources_requests_memory) > 0 ? {
+                memory = var.resources_requests_memory
+              } : {}
             }
           }
           dynamic "port" {
@@ -248,6 +259,14 @@ resource "kubernetes_deployment" "deployment" {
             content {
               name  = env.key
               value = env.value
+            }
+          }
+          env {
+            name = "POD_IP"
+            value_from {
+              field_ref {
+                field_path = "status.podIP"
+              }
             }
           }
           dynamic "readiness_probe" {

@@ -164,12 +164,12 @@ variable "security_context_container_enabled" {
 
 variable "security_context_container_capabilities_add" {
   description = "Added capabilities"
-  default = null
+  default     = null
 }
 
 variable "security_context_container_capabilities_drop" {
   description = "Removed capabilities"
-  default = null
+  default     = null
 }
 
 variable "custom_certificate_authority" {
@@ -181,25 +181,25 @@ variable "custom_certificate_authority" {
 variable "resources_requests_cpu" {
   type        = string
   description = "The maximum amount of compute resources allowed"
-  default     = null
+  default     = ""
 }
 
 variable "resources_requests_memory" {
   type        = string
   description = "The minimum amount of compute resources required"
-  default     = null
+  default     = ""
 }
 
 variable "resources_limits_cpu" {
   type        = string
   description = "The maximum amount of compute resources allowed"
-  default     = null
+  default     = ""
 }
 
 variable "resources_limits_memory" {
   type        = string
   description = "The minimum amount of compute resources required"
-  default     = null
+  default     = ""
 }
 
 variable "env" {
