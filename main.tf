@@ -58,7 +58,7 @@ resource "kubernetes_deployment" "deployment" {
       }
       spec {
         service_account_name = length(var.service_account_name) > 0 ? var.service_account_name : null
-        subdomain = var.subdomain
+        subdomain            = var.subdomain
         dynamic "init_container" {
           for_each = alltrue([var.init_volume_permissions_enabled, length(var.volumes) > 0]) ? [1] : []
           content {
@@ -153,8 +153,8 @@ resource "kubernetes_deployment" "deployment" {
             }
             image_pull_policy = var.init_connectivity_image_pull_policy
             command = [
-              "bash", "-c", join(" ", ["timeout", lookup(init_container.value, "timout", 30), "bash -c", 
-              format("'until nc -vz -w1 %s %s 2>/dev/null; do date && sleep 1; done'", init_container.value["hostname"], init_container.value["port"]),
+              "bash", "-c", join(" ", ["timeout", lookup(init_container.value, "timout", 30), "bash -c",
+                format("'until nc -vz -w1 %s %s 2>/dev/null; do date && sleep 1; done'", init_container.value["hostname"], init_container.value["port"]),
               format("; nc -vz -w1 %s %s", init_container.value["hostname"], init_container.value["port"])])
             ]
           }
@@ -204,7 +204,7 @@ resource "kubernetes_deployment" "deployment" {
             for_each = var.security_context_container_enabled ? [1] : []
             content {
               capabilities {
-                add = var.security_context_container_capabilities_add
+                add  = var.security_context_container_capabilities_add
                 drop = var.security_context_container_capabilities_drop
               }
             }
