@@ -48,6 +48,12 @@ variable "service_account_name" {
   default     = ""
 }
 
+variable "service_links" {
+  type        = bool
+  description = "Enables generating environment variables for service discovery."
+  default     = false
+}
+
 variable "subdomain" {
   type        = string
   description = "Subdomain for the pod"

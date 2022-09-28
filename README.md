@@ -77,6 +77,7 @@ module "deployment" {
 | `ports`                                        | No       | `[]`             | List of ports to configure - see example           |
 | `service_account_name`                         | No       | `""`             | Service account to attach to the pod               |
 | `subdomain`                                    | No       | `""`             | Subdomain for the pod                              |
+| `service_links`                                | No       | `false`          | Use service links, check kubernetes documentation  |
 | `replicas`                                     | No       | `1`              | Amount of pods to deploy as part of deployment     |
 | `pull_policy`                                  | No       | `IfNotPresent`   | Pull policy for the image                          |
 | `annotations`                                  | No       | `{}`             | Annotations to add to the deployment               |
@@ -314,3 +315,14 @@ connectivity_check = [
 
 Variable `volumes` and `ports` does not have its type set as this requires [Optional Object Type Attributes](https://www.terraform.io/docs/language/expressions/type-constraints.html#experimental-optional-object-type-attributes)
 to work correctly. This feature is currently experimental and so it not used at the moment.
+
+## Upgrades
+
+### v2.0.0
+
+Change to v1 resource naming. This requires old resources be manually deleted
+unless the object_prefix is changed. If this is not done Terraform will error
+as the name already exists.
+
+Changed service links to disabled by default. Change `service_links` = `true`
+for old behaviour.

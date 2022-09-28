@@ -20,7 +20,7 @@ locals {
   })
 }
 
-resource "kubernetes_deployment" "deployment" {
+resource "kubernetes_deployment_v1" "deployment" {
   timeouts {
     create = var.timeout_create
     update = var.timeout_update
@@ -57,6 +57,7 @@ resource "kubernetes_deployment" "deployment" {
         annotations = var.template_annotations
       }
       spec {
+        enable_service_links = var.service_links
         service_account_name = length(var.service_account_name) > 0 ? var.service_account_name : null
         subdomain            = var.subdomain
         dynamic "init_container" {
@@ -541,7 +542,7 @@ resource "kubernetes_deployment" "deployment" {
   }
 }
 
-resource "kubernetes_service" "deployment" {
+resource "kubernetes_service_v1" "deployment" {
   count = length(var.ports) > 0 ? 1 : 0
   metadata {
     namespace   = var.namespace
