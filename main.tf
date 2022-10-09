@@ -109,7 +109,11 @@ resource "kubernetes_deployment" "deployment" {
               join(" ", ["openssl req -new -x509 -days 3650 -nodes -sha256",
                 "-subj \"/CN=$(hostname)\" -addext \"subjectAltName = DNS:$(hostname)\"",
                 "-out  /etc/ssl/certs/ssl-cert-snakeoil.pem",
-            "-keyout /etc/ssl/private/ssl-cert-snakeoil.key -extensions v3_req"])])]
+              "-keyout /etc/ssl/private/ssl-cert-snakeoil.key -extensions v3_req"]),
+              "chown root:root -R /etc/ssl",
+              "chmod 0755 /etc/ssl/certs",
+              "chmod 0700 /etc/ssl/private"
+            ])]
             volume_mount {
               name       = "etc-ssl-certs"
               mount_path = "/etc/ssl/certs"
