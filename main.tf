@@ -73,7 +73,7 @@ resource "kubernetes_deployment" "deployment" {
                   format("%s%s%s", "volmount='", vol_mount.mount_path, "'; if echo $${volmount} | grep -q '\\.'; then touch $${volmount}; else /bin/mkdir -p $${volmount}; fi; unset volmount"),
                   var.security_context_enabled ? format("%s %s:%s %s", "/bin/chown -R", lookup(vol_mount, "user", var.security_context_uid), lookup(vol_mount, "group", var.security_context_gid), vol_mount.mount_path) : "",
                   contains(keys(vol_mount), "permissions") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
-                  contains(keys(vol_mount), "owner") ? format("%s %s %s", "/bin/chown", vol_mount.owner, vol_mount.mount_path) : "",
+                  contains(keys(vol_mount), "user") ? format("%s %s %s", "/bin/chown", vol_mount.owner, vol_mount.mount_path) : "",
                 contains(keys(vol_mount), "group") ? format("%s %s %s", "/bin/chgrp", vol_mount.group, vol_mount.mount_path) : ""] if length(regexall("\\.", basename(vol_mount.mount_path))) == 0
               ]])),
             compact(flatten(var.init_volume_permissions_extraargs)))])
