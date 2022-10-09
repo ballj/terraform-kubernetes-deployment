@@ -89,8 +89,9 @@ module "deployment" {
 | `revision_history`                             | No       | `4`              | Number of ReplicaSets to retain                    |
 | `volumes`                                      | No       | `[]`             | List containing volume to mount - see example      |
 | `security_context_enabled`                     | No       | `true`           | Enable security context at pod level               |
-| `security_context_uid`                         | No       | `1000`           | User to run deployment as                          |
-| `security_context_uid`                         | No       | `1000`           | Group to run deployment as                         |
+| `security_context_uid`                         | No       | `1000`           | User to run pod as                                 |
+| `security_context_gid`                         | No       | `1000`           | Group to run pod as                                |
+| `security_context_fsgroup`                     | No       | `1000`           | fsGroup to run pod as                              |
 | `security_context_container_enabled`           | No       | `false`          | Enable security context at container level         |
 | `security_context_container_capabilities_add`  | No       | `null`           | Added capabilities as                              |
 | `security_context_container_capabilities_drop` | No       | `null`           | Removed capabilities as                            |
