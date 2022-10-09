@@ -148,6 +148,50 @@ resource "kubernetes_deployment" "deployment" {
           }
         }
         dynamic "init_container" {
+          for_each = alltrue([length(var.init_user_image_name) > 0, length(var.init_user_image_tag) > 0]) ? [1] : []
+          content {
+            name  = "user"
+            image = format("%s:%s", var.init_user_image_name, var.init_user_image_tag)
+            image_pull_policy = var.init_user_image_pull_policy
+            security_context {
+              run_as_user  = var.init_user_security_context_uid
+              run_as_group = var.init_user_security_context_gid
+            }
+            command = var.init_user_command
+            dynamic "env" {
+              for_each = [for env_var in var.init_user_env_secret : {
+                name   = env_var.name
+                secret = env_var.secret
+                key    = env_var.key
+              }]
+              content {
+                name = env.value["name"]
+                value_from {
+                  secret_key_ref {
+                    name = env.value["secret"]
+                    key  = env.value["key"]
+                  }
+                }
+              }
+            }
+            dynamic "volume_mount" {
+              for_each = flatten([for volume in var.volumes : [
+                for vol_mount in volume.mounts : {
+                  name       = volume.name
+                  mount_path = vol_mount.mount_path
+                  sub_path   = lookup(vol_mount, "sub_path", "")
+                  read_only  = lookup(vol_mount, "read_only", "")
+                } if lookup(vol_mount, "init_user_enabled", true)]
+              ])
+              content {
+                name       = volume_mount.value["name"]
+                mount_path = volume_mount.value["mount_path"]
+                sub_path   = volume_mount.value["sub_path"]
+              }
+            }
+          }
+        }
+        dynamic "init_container" {
           for_each = length(var.connectivity_check) > 0 ? var.connectivity_check : []
           content {
             name  = format("connectivity-%s", contains(keys(init_container.value), "name") ? init_container.value["name"] : replace(init_container.value["hostname"], ".", "-"))
