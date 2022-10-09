@@ -157,13 +157,19 @@ variable "security_context_enabled" {
 
 variable "security_context_uid" {
   type        = number
-  description = "Group to run container as"
+  description = "Group to run pod as"
   default     = 1000
 }
 
 variable "security_context_gid" {
   type        = number
-  description = "User to run container as"
+  description = "User to run pod as"
+  default     = 1000
+}
+
+variable "security_context_fsgroup" {
+  type        = number
+  description = "fsGroup to run pod as"
   default     = 1000
 }
 

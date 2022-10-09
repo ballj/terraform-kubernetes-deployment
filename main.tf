@@ -422,6 +422,7 @@ resource "kubernetes_deployment_v1" "deployment" {
             #allow_privilege_escalation = false
             run_as_user  = var.security_context_uid
             run_as_group = var.security_context_gid
+            fs_group     = var.security_context_fsgroup
           }
         }
         dynamic "volume" {
