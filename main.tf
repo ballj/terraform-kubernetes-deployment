@@ -572,3 +572,91 @@ resource "kubernetes_service_v1" "deployment" {
     }
   }
 }
+
+resource "kubernetes_network_policy_v1" "deployment" {
+  count = length(var.network_policy_ingress) + length(var.network_policy_egress) > 0 ? 1 : 0
+  metadata {
+    namespace   = var.namespace
+    name        = var.object_prefix
+    labels      = local.common_labels
+    annotations = var.service_annotations
+  }
+  spec {
+    pod_selector {
+      match_labels = local.selector_labels
+    }
+    dynamic "ingress" {
+      for_each = var.network_policy_ingress
+      content {
+        dynamic "ports" {
+          for_each = ingress.value.ports
+          content {
+            port     = ports.value.port
+            protocol = ports.value.protocol
+          }
+        }
+        dynamic "from" {
+          for_each = lookup(ingress.value, "selectors", [])
+          content {
+            dynamic "namespace_selector" {
+              for_each = contains(keys(from.value), "namespace") ? [1] : []
+              content {
+                match_labels = contains(keys(from.value.namespace), "match_expressions") ? null : lookup(from.value.namespace, "match_labels", from.value.namespace)
+              }
+            }
+            dynamic "pod_selector" {
+              for_each = contains(keys(from.value), "pod") ? [1] : []
+              content {
+                match_labels = contains(keys(from.value.pod), "match_expressions") ? null : lookup(from.value.pod, "match_labels", from.value.pod)
+              }
+            }
+            dynamic "ip_block" {
+              for_each = contains(keys(from.value), "ip") ? [1] : []
+              content {
+                cidr   = can(keys(from.value.ip)) ? tostring(from.value.ip.cidr) : tostring(from.value.ip)
+                except = can(keys(from.value.ip)) ? lookup(from.value.ip, "except", null) : null
+              }
+            }
+          }
+        }
+      }
+    }
+    dynamic "egress" {
+      for_each = var.network_policy_egress
+      content {
+        dynamic "ports" {
+          for_each = egress.value.ports
+          content {
+            port     = ports.value.port
+            protocol = ports.value.protocol
+          }
+        }
+        dynamic "to" {
+          for_each = lookup(egress.value, "selectors", [])
+          content {
+            dynamic "namespace_selector" {
+              for_each = contains(keys(to.value), "namespace") ? [1] : []
+              content {
+                match_labels = contains(keys(to.value.namespace), "match_expressions") ? null : lookup(to.value.namespace, "match_labels", to.value.namespace)
+              }
+            }
+            dynamic "pod_selector" {
+              for_each = contains(keys(to.value), "pod") ? [1] : []
+              content {
+                match_labels = contains(keys(to.value.pod), "match_expressions") ? null : lookup(to.value.pod, "match_labels", to.value.pod)
+              }
+            }
+            dynamic "ip_block" {
+              for_each = contains(keys(to.value), "ip") ? [1] : []
+              content {
+                cidr   = can(keys(to.value.ip)) ? tostring(to.value.ip.cidr) : tostring(to.value.ip)
+                except = can(keys(to.value.ip)) ? lookup(to.value.ip, "except", null) : null
+              }
+            }
+          }
+        }
+      }
+    }
+    policy_types = var.network_policy_type
+  }
+}

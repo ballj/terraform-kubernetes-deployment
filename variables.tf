@@ -677,3 +677,21 @@ variable "init_user_env_secret" {
   description = "Env secrets to use for the init container"
   default     = []
 }
+
+variable "network_policy_ingress" {
+  type        = list(any)
+  description = "Ingress policy to apply to deployment"
+  default     = []
+}
+
+variable "network_policy_egress" {
+  type        = list(any)
+  description = "Egress policy to apply to deployment"
+  default     = []
+}
+
+variable "network_policy_type" {
+  type        = list(string)
+  description = "Direction of network policy"
+  default     = ["Ingress", "Egress"]
+}

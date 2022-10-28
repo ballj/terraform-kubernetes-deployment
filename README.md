@@ -234,6 +234,14 @@ See below for an example.
 | `mounts.group`                              | No       | N/A              | Sets group for the volume (chgrp)                  |
 | `mounts.permissions`                        | No       | N/A              | Sets permissions for the volume (chmod)            |
 
+### Network Policy Variables
+
+| Variable                                    | Required | Default                 | Description                                 |
+| ------------------------------------------- | -------- | ----------------------- | ------------------------------------------- |
+| `network_policy_type`                       | No       | `["Ingress", "Egress"]` | Direction of network policy                 |
+| `network_policy_ingress`                    | No       | `[]`                    | Ingress policy to apply to deployment       |
+| `network_policy_egress`                     | No       | `[]`                    | Egress policy to apply to deployment        |
+
 ## Persistence
 
 Persistance is achieved by mounting PVCs into the container. This is achieve by
@@ -309,6 +317,100 @@ connectivity_check = [
     timeout  = 30
   }
 ]
+```
+
+## Network Policy
+
+Network policy can be used to restrict network access to and from pods.
+The default behaviour is to use both ingress and egress as soon as a single
+policy is set. This can be controlled with `network_policy_type`.
+
+Some of the fields are multifunctional:
+- selectors.ip can be either a map or a string:
+  - if its a string, its considered a CIDR.
+  - if its a map, it allows cidr and except (similar to Terraform docs)
+- selectors.pod and selectors.namespace can be a map of labels, or a map containing
+  a match_labels variable (match_expressions not implemented yet)
+
+Basic Policy:
+```bash
+  network_policy_ingress = [
+    {
+      ports = [
+        {
+          port     = "80"
+          protocol = "TCP"
+        }
+      ]
+      selectors = [
+        {
+          pod = {
+            match_labels = { "app.kubernetes.io/part-of" = "nw-policy" }
+          }
+        }
+      ]
+    }
+```
+
+Advanced policy:
+```bash
+  network_policy_ingress = [
+    {
+      ports = [
+        {
+          port     = "80"
+          protocol = "TCP"
+        },
+        {
+          port     = "443"
+          protocol = "TCP"
+        }
+      ]
+      selectors = [
+        {
+          pod = {}
+        },
+        {
+          ip = {
+            cidr = "10.0.0.0/8"
+          }
+        },
+        {
+          ip = "192.168.1.0/24"
+        },
+      ]
+    }
+  ]
+  network_policy_egress = [
+    {
+      ports = [
+        {
+          port     = "80"
+          protocol = "TCP"
+        }
+      ]
+      selectors = [{
+        pod = { "app.kubernetes.io/part-of" = "nw-policy" }
+      }]
+    },
+    {
+      ports = [
+        {
+          port     = "53"
+          protocol = "TCP"
+        },
+        {
+          port     = "53"
+          protocol = "UDP"
+        }
+      ]
+      selectors = [{
+        pod       = { "app.kubernetes.io/part-of" = "nw-policy" }
+        namespace = { "kubernetes.io/metadata.name" = "apps" }
+      }]
+    }
+  ]
+  network_policy_type = ["Ingress", "Egress"]
 ```
 
 ## Notes
