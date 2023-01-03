@@ -507,6 +507,14 @@ resource "kubernetes_deployment_v1" "deployment" {
                 secret_name  = volume.value["object_name"]
                 default_mode = lookup(volume.value, "default_mode", "0644")
                 optional     = lookup(volume.value, "optional", "false")
+                dynamic "items" {
+                  for_each = lookup(volume.value, "items", [])
+                  content {
+                    key  = items.value["key"]
+                    mode = lookup(items.value, "mode", null)
+                    path = items.value["path"]
+                  }
+                }
               }
             }
           }
