@@ -151,8 +151,8 @@ resource "kubernetes_deployment_v1" "deployment" {
         dynamic "init_container" {
           for_each = alltrue([length(var.init_user_image_name) > 0, length(var.init_user_image_tag) > 0]) ? [1] : []
           content {
-            name  = "user"
-            image = format("%s:%s", var.init_user_image_name, var.init_user_image_tag)
+            name              = "user"
+            image             = format("%s:%s", var.init_user_image_name, var.init_user_image_tag)
             image_pull_policy = var.init_user_image_pull_policy
             security_context {
               run_as_user  = var.init_user_security_context_uid
