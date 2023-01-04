@@ -532,14 +532,17 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         dynamic "volume" {
-          for_each = var.custom_certificate_authority
+          for_each = length(var.custom_certificate_authority) > 0 ? [1] : []
           content {
             name = "custom-ca-certificates"
             projected {
               default_mode = "0444"
-              sources {
-                secret {
-                  name = volume.value
+              dynamic "sources" {
+                for_each = var.custom_certificate_authority
+                content {
+                  secret {
+                    name = sources.value
+                  }
                 }
               }
             }
