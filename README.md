@@ -7,7 +7,7 @@ This terraform module deploys a deployment on kubernetes and adds a service.
 ```
 module "deployment" {
   source              = "ballj/deployment/kubernetes"
-  version             = "~> 1.5.1"
+  version             = "~> 2.4"
   image_name          = "nginx"
   image_tag           = "latest"
   namespace           = "production"

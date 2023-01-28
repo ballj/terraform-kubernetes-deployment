@@ -331,7 +331,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           dynamic "readiness_probe" {
             for_each = var.readiness_probe_enabled ? [1] : []
             content {
-              initial_delay_seconds = var.readiness_probe_initial_delay
+              initial_delay_seconds = var.startup_probe_enabled ? null : var.readiness_probe_initial_delay
               period_seconds        = var.readiness_probe_period
               timeout_seconds       = var.readiness_probe_timeout
               success_threshold     = var.readiness_probe_success
@@ -369,7 +369,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           dynamic "liveness_probe" {
             for_each = var.liveness_probe_enabled ? [1] : []
             content {
-              initial_delay_seconds = var.liveness_probe_initial_delay
+              initial_delay_seconds = var.startup_probe_enabled ? null : var.liveness_probe_initial_delay
               period_seconds        = var.liveness_probe_period
               timeout_seconds       = var.liveness_probe_timeout
               success_threshold     = var.liveness_probe_success
