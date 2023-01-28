@@ -11,6 +11,10 @@ variable "namespace" {
 variable "image_name" {
   type        = string
   description = "Docker image to use"
+  validation {
+    condition     = length(regexall(" ", var.image_name)) == 0
+    error_message = "The image_name must not contain spaces."
+  }
 }
 
 variable "image_tag" {

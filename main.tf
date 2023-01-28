@@ -61,7 +61,13 @@ resource "kubernetes_deployment_v1" "deployment" {
         service_account_name = length(var.service_account_name) > 0 ? var.service_account_name : null
         subdomain            = var.subdomain
         dynamic "init_container" {
-          for_each = alltrue([var.init_volume_permissions_enabled, length(var.volumes) > 0]) ? [1] : []
+          for_each = alltrue([
+            var.init_volume_permissions_enabled,
+            length(var.volumes) > 0,
+            toset([for mount in var.volumes : mount.type]) != toset(["config_map"]),
+            toset([for mount in var.volumes : mount.type]) != toset(["secret"]),
+            toset([for mount in var.volumes : mount.type]) != toset(["config_map", "secret"])
+          ]) ? [1] : []
           content {
             name  = "volume-permissions"
             image = format("%s:%s", var.init_volume_permissions_image_name, var.init_volume_permissions_image_tag)
@@ -69,19 +75,23 @@ resource "kubernetes_deployment_v1" "deployment" {
               run_as_user = 0
             }
             command = flatten(["/bin/sh", "-c", join(" && ",
-              compact(flatten([for pvc in var.volumes : [
-                for vol_mount in pvc.mounts : [
+              compact(flatten([for volume in var.volumes : [
+                for vol_mount in volume.mounts : [
                   format("%s%s%s", "volmount='", vol_mount.mount_path, "'; if echo $${volmount} | grep -q '\\.'; then touch $${volmount}; else /bin/mkdir -p $${volmount}; fi; unset volmount"),
                   var.security_context_enabled ? format("%s %s:%s %s", "/bin/chown -R", lookup(vol_mount, "user", var.security_context_uid), lookup(vol_mount, "group", var.security_context_gid), vol_mount.mount_path) : "",
                   contains(keys(vol_mount), "permissions") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
+                  contains(keys(vol_mount), "mode") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
                   contains(keys(vol_mount), "user") ? format("%s %s %s", "/bin/chown", vol_mount.owner, vol_mount.mount_path) : "",
-                contains(keys(vol_mount), "group") ? format("%s %s %s", "/bin/chgrp", vol_mount.group, vol_mount.mount_path) : ""] if length(regexall("\\.", basename(vol_mount.mount_path))) == 0
+                  contains(keys(vol_mount), "group") ? format("%s %s %s", "/bin/chgrp", vol_mount.group, vol_mount.mount_path) : ""] if alltrue([
+                    volume.type != "config_map",
+                    volume.type != "secret"
+                ])
               ]])),
             compact(flatten(var.init_volume_permissions_extraargs)))])
             dynamic "volume_mount" {
-              for_each = flatten([for pvc in var.volumes : [
-                for vol_mount in pvc.mounts : {
-                  name       = pvc.name
+              for_each = flatten([for volume in var.volumes : [
+                for vol_mount in volume.mounts : {
+                  name       = volume.name
                   mount_path = vol_mount.mount_path
                   sub_path   = lookup(vol_mount, "sub_path", "")
                   read_only  = lookup(vol_mount, "read_only", "")
@@ -433,9 +443,9 @@ resource "kubernetes_deployment_v1" "deployment" {
             }
           }
           dynamic "volume_mount" {
-            for_each = flatten([for pvc in var.volumes : [
-              for vol_mount in pvc.mounts : {
-                name       = pvc.name
+            for_each = flatten([for volume in var.volumes : [
+              for vol_mount in volume.mounts : {
+                name       = volume.name
                 mount_path = vol_mount.mount_path
                 sub_path   = lookup(vol_mount, "sub_path", "")
                 read_only  = lookup(vol_mount, "read_only", false)
@@ -499,6 +509,16 @@ resource "kubernetes_deployment_v1" "deployment" {
                 name         = volume.value["object_name"]
                 default_mode = lookup(volume.value, "default_mode", "0644")
                 optional     = lookup(volume.value, "optional", "false")
+                dynamic "items" {
+                  for_each = [for mount in volume.value.mounts : mount if anytrue([
+                    contains(keys(mount), "sub_path")
+                  ])]
+                  content {
+                    key  = items.value.sub_path
+                    mode = lookup(items.value, "mode", null)
+                    path = items.value.sub_path
+                  }
+                }
               }
             }
             dynamic "secret" {
@@ -508,11 +528,13 @@ resource "kubernetes_deployment_v1" "deployment" {
                 default_mode = lookup(volume.value, "default_mode", "0644")
                 optional     = lookup(volume.value, "optional", "false")
                 dynamic "items" {
-                  for_each = lookup(volume.value, "items", [])
+                  for_each = [for mount in volume.value.mounts : mount if anytrue([
+                    contains(keys(mount), "sub_path")
+                  ])]
                   content {
-                    key  = items.value["key"]
+                    key  = items.value.sub_path
                     mode = lookup(items.value, "mode", null)
-                    path = items.value["path"]
+                    path = items.value.sub_path
                   }
                 }
               }

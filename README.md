@@ -232,7 +232,7 @@ See below for an example.
 | `mounts.read_only`                          | No       | `false`          | Readonly flag for volume mount                     |
 | `mounts.user`                               | No       | N/A              | Sets user for the volume (chown)                   |
 | `mounts.group`                              | No       | N/A              | Sets group for the volume (chgrp)                  |
-| `mounts.permissions`                        | No       | N/A              | Sets permissions for the volume (chmod)            |
+| `mounts.mode`                               | No       | N/A              | Sets permissions for the volume (chmod)            |
 
 ### Network Policy Variables
 
@@ -253,24 +253,31 @@ volumes   = [
     name         = "html"
     type         = "persistent_volume_claim"
     object_name  = "nginx"
-    mounts = [{
+    mounts = [{ # This will mount all objects of persistent_volume_claim
       mount_path = "/usr/share/nginx"
     }]
   },
   {
     name         = "config"
-    type         = "persistent_volume_claim"
+    type         = "config_map"
     object_name  = "nginx-config"
-    mounts = [{
-      mount_path = "/etc/nginx"
-      sub_path   = "nginx.conf"
-      read_only  = true
-    },
-    {
-      mount_path = "/etc/nginx"
-      sub_path   = "extra.conf"
-      read_only  = true
-    }]
+    mounts = [
+      { # This will mount only the nginx.conf file
+        mount_path = "/etc/nginx.conf"
+        sub_path   = "nginx.conf"
+        read_only  = true
+      },
+      { # This will mount only the extra.conf file
+        mount_path = "/etc/nginx"
+        sub_path   = "extra.conf"
+        read_only  = true
+      },
+      { # This will mount the config_map key original.conf at mount_path
+        mount_path = "/etc/nginx/rename.conf"
+        sub_path   = "original.conf"
+        mode       = "0400"
+      }
+    ]
   },
   {
     name         = "logs"
@@ -428,3 +435,9 @@ as the name already exists.
 
 Changed service links to disabled by default. Change `service_links` = `true`
 for old behaviour.
+
+### v2.4.0
+
+Changed the volume naming slightly. `permissions` has been renamed to `mode` to be
+more consistent with the Kubernetes documentation. `permissions` will continue to
+work until it is removed in the `v3.0.0` version.
