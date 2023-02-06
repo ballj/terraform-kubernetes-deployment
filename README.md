@@ -186,6 +186,7 @@ Will be automatically enabled if `init_user_image_name` and `init_user_image_tag
 | `init_user_image_pull_policy`       | No       | `IfNotPresent` | Pull policy for the init volume                    |
 | `init_user_security_context_uid`    | No       | `1000`         | User to run container as                           |
 | `init_user_security_context_gid`    | No       | `1000`         | Group to run container as                          |
+| `init_user_env`                     | No       | `[]`           | Environment variables for init container           |
 | `init_user_env_secret`              | No       | `[]`           | Secrets to add into the init container - eg proxy  |
 
 ### Service Variables

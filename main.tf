@@ -185,6 +185,13 @@ resource "kubernetes_deployment_v1" "deployment" {
                 }
               }
             }
+            dynamic "env" {
+              for_each = var.init_user_env
+              content {
+                name  = env.key
+                value = env.value
+              }
+            }
             dynamic "volume_mount" {
               for_each = flatten([for volume in var.volumes : [
                 for vol_mount in volume.mounts : {

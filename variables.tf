@@ -672,6 +672,12 @@ variable "init_user_image_pull_policy" {
   default     = "IfNotPresent"
 }
 
+variable "init_user_env" {
+  type        = map(string)
+  description = "Environment variables for init container"
+  default     = {}
+}
+
 variable "init_user_env_secret" {
   type = list(object({
     name   = string
