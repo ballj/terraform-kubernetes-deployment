@@ -20,3 +20,5 @@ terraform.tfstate.d/
 # Variable Files
 terraform.tfvars
 terraform.tfvars.json
+
+/.idea

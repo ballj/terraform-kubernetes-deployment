@@ -22,6 +22,12 @@ variable "image_tag" {
   description = "Docker image tag to use"
 }
 
+variable "image_pull_secrets" {
+  type        = list(string)
+  default     = []
+  description = "List of pull secrets for the docker image"
+}
+
 variable "timeout_create" {
   type        = string
   description = "Timeout for creating the deployment"
@@ -65,7 +71,12 @@ variable "subdomain" {
 }
 
 variable "ports" {
-  type        = any
+  type = list(object({
+    name           = string
+    protocol       = string
+    container_port = number
+    service_port   = number
+  }))
   description = "Ports to expose from container"
   default     = []
 }
@@ -636,6 +647,18 @@ variable "init_connectivity_image_pull_policy" {
   default     = "IfNotPresent"
 }
 
+variable "pre_install_job_command" {
+  type        = list(string)
+  default     = []
+  description = "Command for pre-install job"
+}
+
+variable "pre_install_job_args" {
+  type        = list(string)
+  default     = []
+  description = "Args for pre install install job"
+}
+
 variable "init_user_image_name" {
   type        = string
   description = "Init container image name"
@@ -704,4 +727,10 @@ variable "network_policy_type" {
   type        = list(string)
   description = "Direction of network policy"
   default     = ["Ingress", "Egress"]
+}
+
+variable "node_selector" {
+  type        = map(string)
+  default     = {}
+  description = "Node selector to use for the deployment"
 }
