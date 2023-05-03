@@ -11,6 +11,10 @@ variable "namespace" {
 variable "image_name" {
   type        = string
   description = "Docker image to use"
+  validation {
+    condition     = length(regexall(" ", var.image_name)) == 0
+    error_message = "The image_name must not contain spaces."
+  }
 }
 
 variable "image_tag" {
@@ -52,6 +56,12 @@ variable "service_account_name" {
   type        = string
   description = "Service account name to add to the pod"
   default     = ""
+}
+
+variable "service_links" {
+  type        = bool
+  description = "Enables generating environment variables for service discovery."
+  default     = false
 }
 
 variable "subdomain" {
@@ -198,25 +208,25 @@ variable "custom_certificate_authority" {
 variable "resources_requests_cpu" {
   type        = string
   description = "The maximum amount of compute resources allowed"
-  default     = null
+  default     = ""
 }
 
 variable "resources_requests_memory" {
   type        = string
   description = "The minimum amount of compute resources required"
-  default     = null
+  default     = ""
 }
 
 variable "resources_limits_cpu" {
   type        = string
   description = "The maximum amount of compute resources allowed"
-  default     = null
+  default     = ""
 }
 
 variable "resources_limits_memory" {
   type        = string
   description = "The minimum amount of compute resources required"
-  default     = null
+  default     = ""
 }
 
 variable "env" {
@@ -637,13 +647,6 @@ variable "init_connectivity_image_pull_policy" {
   default     = "IfNotPresent"
 }
 
-
-variable "node_selector" {
-  type        = map(string)
-  default     = {}
-  description = "Node selector to use for the deployment"
-}
-
 variable "pre_install_job_command" {
   type        = list(string)
   default     = []
@@ -654,4 +657,74 @@ variable "pre_install_job_args" {
   type        = list(string)
   default     = []
   description = "Args for pre install install job"
+}
+
+variable "init_user_image_name" {
+  type        = string
+  description = "Init container image name"
+  default     = ""
+}
+
+variable "init_user_image_tag" {
+  type        = string
+  description = "Init container image tag"
+  default     = ""
+}
+
+variable "init_user_security_context_uid" {
+  type        = number
+  description = "UID to run custom init continer as"
+  default     = 1000
+}
+
+variable "init_user_security_context_gid" {
+  type        = number
+  description = "GID to run custom init continer as"
+  default     = 1000
+}
+
+variable "init_user_command" {
+  # type        = list(string)
+  description = "Command to run within init container"
+  default     = []
+}
+
+variable "init_user_image_pull_policy" {
+  type        = string
+  description = "Pull policy to use for the init container"
+  default     = "IfNotPresent"
+}
+
+variable "init_user_env" {
+  type        = map(string)
+  description = "Environment variables for init container"
+  default     = {}
+}
+
+variable "init_user_env_secret" {
+  type = list(object({
+    name   = string
+    secret = string
+    key    = string
+  }))
+  description = "Env secrets to use for the init container"
+  default     = []
+}
+
+variable "network_policy_ingress" {
+  type        = list(any)
+  description = "Ingress policy to apply to deployment"
+  default     = []
+}
+
+variable "network_policy_egress" {
+  type        = list(any)
+  description = "Egress policy to apply to deployment"
+  default     = []
+}
+
+variable "network_policy_type" {
+  type        = list(string)
+  description = "Direction of network policy"
+  default     = ["Ingress", "Egress"]
 }

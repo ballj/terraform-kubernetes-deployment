@@ -60,9 +60,10 @@ resource "kubernetes_deployment_v1" "deployment" {
         annotations = var.template_annotations
       }
       spec {
+        enable_service_links = var.service_links
         service_account_name = length(var.service_account_name) > 0 ? var.service_account_name : null
-        node_selector = var.node_selector
-        subdomain = var.subdomain
+        node_selector        = var.node_selector
+        subdomain            = var.subdomain
         dynamic "image_pull_secrets" {
           for_each = {for v in var.image_pull_secrets : v => v}
           content {
@@ -70,31 +71,48 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         dynamic "init_container" {
-          for_each = alltrue([var.init_volume_permissions_enabled, length(var.volumes) > 0]) ? [1] : []
+          for_each = alltrue([
+            var.init_volume_permissions_enabled,
+            length(var.volumes) > 0,
+            toset([for mount in var.volumes : mount.type]) != toset(["config_map"]),
+            toset([for mount in var.volumes : mount.type]) != toset(["secret"]),
+            toset([for mount in var.volumes : mount.type]) != toset(["config_map", "secret"])
+          ]) ? [1] : []
           content {
             name  = "volume-permissions"
             image = format("%s:%s", var.init_volume_permissions_image_name, var.init_volume_permissions_image_tag)
             security_context {
               run_as_user = 0
             }
-            command = flatten(["/bin/sh", "-c", join(" && ",
-              compact(flatten([for pvc in var.volumes : [
-                for vol_mount in pvc.mounts : [
-                  format("%s%s%s", "volmount='", vol_mount.mount_path, "'; if echo $${volmount} | grep -q '\\.'; then touch $${volmount}; else /bin/mkdir -p $${volmount}; fi; unset volmount"),
-                  var.security_context_enabled ? format("%s %s:%s %s", "/bin/chown -R", lookup(vol_mount, "user", var.security_context_uid), lookup(vol_mount, "group", var.security_context_gid), vol_mount.mount_path) : "",
-                  contains(keys(vol_mount), "permissions") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
-                  contains(keys(vol_mount), "owner") ? format("%s %s %s", "/bin/chown", vol_mount.owner, vol_mount.mount_path) : "",
-                contains(keys(vol_mount), "group") ? format("%s %s %s", "/bin/chgrp", vol_mount.group, vol_mount.mount_path) : ""] if length(regexall("\\.", basename(vol_mount.mount_path))) == 0
-              ]])),
-            compact(flatten(var.init_volume_permissions_extraargs)))])
+            command = flatten([
+              "/bin/sh", "-c", join(" && ",
+                compact(flatten([
+                  for volume in var.volumes : [
+                    for vol_mount in volume.mounts : [
+                      format("%s%s%s", "volmount='", vol_mount.mount_path, "'; if echo $${volmount} | grep -q '\\.'; then touch $${volmount}; else /bin/mkdir -p $${volmount}; fi; unset volmount"),
+                      var.security_context_enabled ? format("%s %s:%s %s", "/bin/chown -R", lookup(vol_mount, "user", var.security_context_uid), lookup(vol_mount, "group", var.security_context_gid), vol_mount.mount_path) : "",
+                      contains(keys(vol_mount), "permissions") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
+                      contains(keys(vol_mount), "mode") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
+                      contains(keys(vol_mount), "user") ? format("%s %s %s", "/bin/chown", vol_mount.owner, vol_mount.mount_path) : "",
+                      contains(keys(vol_mount), "group") ? format("%s %s %s", "/bin/chgrp", vol_mount.group, vol_mount.mount_path) : ""
+                    ] if alltrue([
+                      volume.type != "config_map",
+                      volume.type != "secret"
+                    ])
+                  ]
+                ])),
+                compact(flatten(var.init_volume_permissions_extraargs)))
+            ])
             dynamic "volume_mount" {
-              for_each = flatten([for pvc in var.volumes : [
-                for vol_mount in pvc.mounts : {
-                  name       = pvc.name
-                  mount_path = vol_mount.mount_path
-                  sub_path   = lookup(vol_mount, "sub_path", "")
-                  read_only  = lookup(vol_mount, "read_only", "")
-                }]
+              for_each = flatten([
+                for volume in var.volumes : [
+                  for vol_mount in volume.mounts : {
+                    name       = volume.name
+                    mount_path = vol_mount.mount_path
+                    sub_path   = lookup(vol_mount, "sub_path", "")
+                    read_only  = lookup(vol_mount, "read_only", "")
+                  }
+                ]
               ])
               content {
                 name       = volume_mount.value["name"]
@@ -112,14 +130,24 @@ resource "kubernetes_deployment_v1" "deployment" {
             security_context {
               run_as_user = 0
             }
-            command = ["/bin/sh", "-c", join(" && ", [
-              join(" ", ["if command -v apk >/dev/null; then",
-                "apk add --no-cache ca-certificates openssl && update-ca-certificates;",
-              "else apt-get update && apt-get install -y ca-certificates openssl; fi"]),
-              join(" ", ["openssl req -new -x509 -days 3650 -nodes -sha256",
-                "-subj \"/CN=$(hostname)\" -addext \"subjectAltName = DNS:$(hostname)\"",
-                "-out  /etc/ssl/certs/ssl-cert-snakeoil.pem",
-            "-keyout /etc/ssl/private/ssl-cert-snakeoil.key -extensions v3_req"])])]
+            command = [
+              "/bin/sh", "-c", join(" && ", [
+                join(" ", [
+                  "if command -v apk >/dev/null; then",
+                  "apk add --no-cache ca-certificates openssl && update-ca-certificates;",
+                  "else apt-get update && apt-get install -y ca-certificates openssl; fi"
+                ]),
+                join(" ", [
+                  "openssl req -new -x509 -days 3650 -nodes -sha256",
+                  "-subj \"/CN=$(hostname)\" -addext \"subjectAltName = DNS:$(hostname)\"",
+                  "-out  /etc/ssl/certs/ssl-cert-snakeoil.pem",
+                  "-keyout /etc/ssl/private/ssl-cert-snakeoil.key -extensions v3_req"
+                ]),
+                "chown root:root -R /etc/ssl",
+                "chmod 0755 /etc/ssl/certs",
+                "chmod 0700 /etc/ssl/private"
+              ])
+            ]
             volume_mount {
               name       = "etc-ssl-certs"
               mount_path = "/etc/ssl/certs"
@@ -136,11 +164,13 @@ resource "kubernetes_deployment_v1" "deployment" {
               read_only  = true
             }
             dynamic "env" {
-              for_each = [for env_var in var.init_customca_env_secret : {
-                name   = env_var.name
-                secret = env_var.secret
-                key    = env_var.key
-              }]
+              for_each = [
+                for env_var in var.init_customca_env_secret : {
+                  name   = env_var.name
+                  secret = env_var.secret
+                  key    = env_var.key
+                }
+              ]
               content {
                 name = env.value["name"]
                 value_from {
@@ -154,6 +184,61 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         dynamic "init_container" {
+          for_each = alltrue([length(var.init_user_image_name) > 0, length(var.init_user_image_tag) > 0]) ? [1] : []
+          content {
+            name              = "user"
+            image             = format("%s:%s", var.init_user_image_name, var.init_user_image_tag)
+            image_pull_policy = var.init_user_image_pull_policy
+            security_context {
+              run_as_user  = var.init_user_security_context_uid
+              run_as_group = var.init_user_security_context_gid
+            }
+            command = var.init_user_command
+            dynamic "env" {
+              for_each = [
+                for env_var in var.init_user_env_secret : {
+                  name   = env_var.name
+                  secret = env_var.secret
+                  key    = env_var.key
+                }
+              ]
+              content {
+                name = env.value["name"]
+                value_from {
+                  secret_key_ref {
+                    name = env.value["secret"]
+                    key  = env.value["key"]
+                  }
+                }
+              }
+            }
+            dynamic "env" {
+              for_each = var.init_user_env
+              content {
+                name  = env.key
+                value = env.value
+              }
+            }
+            dynamic "volume_mount" {
+              for_each = flatten([
+                for volume in var.volumes : [
+                  for vol_mount in volume.mounts : {
+                    name       = volume.name
+                    mount_path = vol_mount.mount_path
+                    sub_path   = lookup(vol_mount, "sub_path", "")
+                    read_only  = lookup(vol_mount, "read_only", "")
+                  } if lookup(vol_mount, "init_user_enabled", true)
+                ]
+              ])
+              content {
+                name       = volume_mount.value["name"]
+                mount_path = volume_mount.value["mount_path"]
+                sub_path   = volume_mount.value["sub_path"]
+              }
+            }
+          }
+        }
+        dynamic "init_container" {
           for_each = length(var.connectivity_check) > 0 ? var.connectivity_check : []
           content {
             name  = format("connectivity-%s", contains(keys(init_container.value), "name") ? init_container.value["name"] : replace(init_container.value["hostname"], ".", "-"))
@@ -162,10 +247,12 @@ resource "kubernetes_deployment_v1" "deployment" {
               run_as_user = 1000
             }
             image_pull_policy = var.init_connectivity_image_pull_policy
-            command = [
-              "bash", "-c", join(" ", ["timeout", lookup(init_container.value, "timout", 30), "bash -c",
-              format("'until nc -vz -w1 %s %s 2>/dev/null; do date && sleep 1; done'", init_container.value["hostname"], init_container.value["port"]),
-              format("; nc -vz -w1 %s %s", init_container.value["hostname"], init_container.value["port"])])
+            command           = [
+              "bash", "-c", join(" ", [
+                "timeout", lookup(init_container.value, "timout", 30), "bash -c",
+                format("'until nc -vz -w1 %s %s 2>/dev/null; do date && sleep 1; done'", init_container.value["hostname"], init_container.value["port"]),
+                format("; nc -vz -w1 %s %s", init_container.value["hostname"], init_container.value["port"])
+              ])
             ]
           }
         }
@@ -197,7 +284,9 @@ resource "kubernetes_deployment_v1" "deployment" {
                       }
                     }
                     path   = var.post_start_path
-                    port   = var.post_start_port > 0 ? var.post_start_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.post_start_scheme), var.ports[0].container_port)
+                    port   = var.post_start_port > 0 ? var.post_start_port : lookup({
+                      for port in var.ports :lower(port.name) => port.container_port
+                    }, lower(var.post_start_scheme), var.ports[0].container_port)
                     scheme = var.post_start_scheme
                   }
                 }
@@ -214,19 +303,32 @@ resource "kubernetes_deployment_v1" "deployment" {
             for_each = var.security_context_container_enabled ? [1] : []
             content {
               capabilities {
-                add = var.security_context_container_capabilities_add
+                add  = var.security_context_container_capabilities_add
                 drop = var.security_context_container_capabilities_drop
               }
             }
           }
-          resources {
-            limits = {
-              cpu    = var.resources_limits_cpu
-              memory = var.resources_limits_memory
-            }
-            requests = {
-              cpu    = var.resources_requests_cpu
-              memory = var.resources_requests_memory
+          dynamic "resources" {
+            for_each = length(var.resources_limits_cpu) > 0 || length(var.resources_limits_memory) > 0 || length(var.resources_requests_cpu) > 0 || length(var.resources_requests_memory) > 0 ? [
+              1
+            ] : []
+            content {
+              limits = length(var.resources_limits_cpu) > 0 && length(var.resources_limits_memory) > 0 ? {
+                cpu    = var.resources_limits_cpu
+                memory = var.resources_limits_memory
+              } : length(var.resources_limits_cpu) > 0 ? {
+                cpu = var.resources_limits_cpu
+              } : length(var.resources_limits_memory) > 0 ? {
+                memory = var.resources_limits_memory
+              } : {}
+              requests = length(var.resources_requests_cpu) > 0 && length(var.resources_requests_memory) > 0 ? {
+                cpu    = var.resources_requests_cpu
+                memory = var.resources_requests_memory
+              } : length(var.resources_limits_cpu) > 0 ? {
+                cpu = var.resources_requests_cpu
+              } : length(var.resources_requests_memory) > 0 ? {
+                memory = var.resources_requests_memory
+              } : {}
             }
           }
           dynamic "port" {
@@ -246,11 +348,13 @@ resource "kubernetes_deployment_v1" "deployment" {
             }
           }
           dynamic "env" {
-            for_each = [for env_var in var.env_secret : {
-              name   = env_var.name
-              secret = env_var.secret
-              key    = env_var.key
-            }]
+            for_each = [
+              for env_var in var.env_secret : {
+                name   = env_var.name
+                secret = env_var.secret
+                key    = env_var.key
+              }
+            ]
             content {
               name = env.value["name"]
               value_from {
@@ -268,10 +372,18 @@ resource "kubernetes_deployment_v1" "deployment" {
               value = env.value
             }
           }
+          env {
+            name = "POD_IP"
+            value_from {
+              field_ref {
+                field_path = "status.podIP"
+              }
+            }
+          }
           dynamic "readiness_probe" {
             for_each = var.readiness_probe_enabled ? [1] : []
             content {
-              initial_delay_seconds = var.readiness_probe_initial_delay
+              initial_delay_seconds = var.startup_probe_enabled ? null : var.readiness_probe_initial_delay
               period_seconds        = var.readiness_probe_period
               timeout_seconds       = var.readiness_probe_timeout
               success_threshold     = var.readiness_probe_success
@@ -294,7 +406,9 @@ resource "kubernetes_deployment_v1" "deployment" {
                     }
                   }
                   path   = var.readiness_probe_path
-                  port   = var.readiness_probe_port > 0 ? var.readiness_probe_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.readiness_probe_scheme), var.ports[0].container_port)
+                  port   = var.readiness_probe_port > 0 ? var.readiness_probe_port : lookup({
+                    for port in var.ports :lower(port.name) => port.container_port
+                  }, lower(var.readiness_probe_scheme), var.ports[0].container_port)
                   scheme = var.readiness_probe_scheme
                 }
               }
@@ -309,7 +423,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           dynamic "liveness_probe" {
             for_each = var.liveness_probe_enabled ? [1] : []
             content {
-              initial_delay_seconds = var.liveness_probe_initial_delay
+              initial_delay_seconds = var.startup_probe_enabled ? null : var.liveness_probe_initial_delay
               period_seconds        = var.liveness_probe_period
               timeout_seconds       = var.liveness_probe_timeout
               success_threshold     = var.liveness_probe_success
@@ -332,7 +446,9 @@ resource "kubernetes_deployment_v1" "deployment" {
                     }
                   }
                   path   = var.liveness_probe_path
-                  port   = var.liveness_probe_port > 0 ? var.liveness_probe_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.liveness_probe_scheme), var.ports[0].container_port)
+                  port   = var.liveness_probe_port > 0 ? var.liveness_probe_port : lookup({
+                    for port in var.ports :lower(port.name) => port.container_port
+                  }, lower(var.liveness_probe_scheme), var.ports[0].container_port)
                   scheme = var.liveness_probe_scheme
                 }
               }
@@ -370,7 +486,9 @@ resource "kubernetes_deployment_v1" "deployment" {
                     }
                   }
                   path   = var.startup_probe_path
-                  port   = var.startup_probe_port > 0 ? var.startup_probe_port : lookup({ for port in var.ports : lower(port.name) => port.container_port }, lower(var.startup_probe_scheme), var.ports[0].container_port)
+                  port   = var.startup_probe_port > 0 ? var.startup_probe_port : lookup({
+                    for port in var.ports :lower(port.name) => port.container_port
+                  }, lower(var.startup_probe_scheme), var.ports[0].container_port)
                   scheme = var.startup_probe_scheme
                 }
               }
@@ -383,13 +501,15 @@ resource "kubernetes_deployment_v1" "deployment" {
             }
           }
           dynamic "volume_mount" {
-            for_each = flatten([for pvc in var.volumes : [
-              for vol_mount in pvc.mounts : {
-                name       = pvc.name
-                mount_path = vol_mount.mount_path
-                sub_path   = lookup(vol_mount, "sub_path", "")
-                read_only  = lookup(vol_mount, "read_only", false)
-              }]
+            for_each = flatten([
+              for volume in var.volumes : [
+                for vol_mount in volume.mounts : {
+                  name       = volume.name
+                  mount_path = vol_mount.mount_path
+                  sub_path   = lookup(vol_mount, "sub_path", "")
+                  read_only  = lookup(vol_mount, "read_only", false)
+                }
+              ]
             ])
             content {
               name       = volume_mount.value["name"]
@@ -399,14 +519,17 @@ resource "kubernetes_deployment_v1" "deployment" {
             }
           }
           dynamic "volume_mount" {
-            for_each = length(var.custom_certificate_authority) > 0 ? [for vol_mount in [
-              { "name" = "etc-ssl-certs", "path" = "/etc/ssl/certs", "ro" = "true" },
-              { "name" = "etc-ssl-private", "path" = "/etc/ssl/private", "ro" = "true" },
-              { "name" = "custom-ca-certificates", "path" = "/usr/local/share/ca-certificates", "ro" = "true" }] : {
-              name       = vol_mount.name
-              mount_path = vol_mount.path
-              read_only  = vol_mount.ro
-            }] : []
+            for_each = length(var.custom_certificate_authority) > 0 ? [
+              for vol_mount in [
+                { "name" = "etc-ssl-certs", "path" = "/etc/ssl/certs", "ro" = "true" },
+                { "name" = "etc-ssl-private", "path" = "/etc/ssl/private", "ro" = "true" },
+                { "name" = "custom-ca-certificates", "path" = "/usr/local/share/ca-certificates", "ro" = "true" }
+              ] : {
+                name       = vol_mount.name
+                mount_path = vol_mount.path
+                read_only  = vol_mount.ro
+              }
+            ] : []
             content {
               name       = volume_mount.value["name"]
               mount_path = volume_mount.value["mount_path"]
@@ -420,9 +543,9 @@ resource "kubernetes_deployment_v1" "deployment" {
             run_as_non_root = true
             #privileged                 = false
             #allow_privilege_escalation = false
-            run_as_user  = var.security_context_uid
-            run_as_group = var.security_context_gid
-            fs_group     = var.security_context_fsgroup
+            run_as_user     = var.security_context_uid
+            run_as_group    = var.security_context_gid
+            fs_group        = var.security_context_fsgroup
           }
         }
         dynamic "volume" {
@@ -449,6 +572,18 @@ resource "kubernetes_deployment_v1" "deployment" {
                 name         = volume.value["object_name"]
                 default_mode = lookup(volume.value, "default_mode", "0644")
                 optional     = lookup(volume.value, "optional", "false")
+                dynamic "items" {
+                  for_each = [
+                    for mount in volume.value.mounts : mount if anytrue([
+                      contains(keys(mount), "sub_path")
+                    ])
+                  ]
+                  content {
+                    key  = items.value.sub_path
+                    mode = lookup(items.value, "mode", null)
+                    path = items.value.sub_path
+                  }
+                }
               }
             }
             dynamic "secret" {
@@ -457,15 +592,30 @@ resource "kubernetes_deployment_v1" "deployment" {
                 secret_name  = volume.value["object_name"]
                 default_mode = lookup(volume.value, "default_mode", "0644")
                 optional     = lookup(volume.value, "optional", "false")
+                dynamic "items" {
+                  for_each = [
+                    for mount in volume.value.mounts : mount if anytrue([
+                      contains(keys(mount), "sub_path")
+                    ])
+                  ]
+                  content {
+                    key  = items.value.sub_path
+                    mode = lookup(items.value, "mode", null)
+                    path = items.value.sub_path
+                  }
+                }
               }
             }
           }
         }
         dynamic "volume" {
-          for_each = length(var.custom_certificate_authority) > 0 ? [for vol_name in [
-            "etc-ssl-certs", "etc-ssl-private"] : {
-            name = vol_name
-          }] : []
+          for_each = length(var.custom_certificate_authority) > 0 ? [
+            for vol_name in [
+              "etc-ssl-certs", "etc-ssl-private"
+            ] : {
+              name = vol_name
+            }
+          ] : []
           content {
             name = volume.value["name"]
             empty_dir {
@@ -474,14 +624,17 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         dynamic "volume" {
-          for_each = var.custom_certificate_authority
+          for_each = length(var.custom_certificate_authority) > 0 ? [1] : []
           content {
             name = "custom-ca-certificates"
             projected {
               default_mode = "0444"
-              sources {
-                secret {
-                  name = volume.value
+              dynamic "sources" {
+                for_each = var.custom_certificate_authority
+                content {
+                  secret {
+                    name = sources.value
+                  }
                 }
               }
             }
@@ -504,15 +657,19 @@ resource "kubernetes_service_v1" "deployment" {
     selector                = local.selector_labels
     session_affinity        = var.service_session_affinity
     type                    = var.service_type
-    external_traffic_policy = contains(["LoadBalancer", "NodePort"], var.service_type) ? var.service_traffic_policy : null
+    external_traffic_policy = contains([
+      "LoadBalancer", "NodePort"
+    ], var.service_type) ? var.service_traffic_policy : null
     load_balancer_ip        = length(var.service_loadbalancer_ip) > 0 ? var.service_loadbalancer_ip : null
     dynamic "port" {
-      for_each = [for port in var.ports : {
-        name           = port.name
-        protocol       = port.protocol
-        container_port = port.container_port
-        service_port   = port.service_port
-      } if contains(keys(port), "service_port")]
+      for_each = [
+        for port in var.ports : {
+          name           = port.name
+          protocol       = port.protocol
+          container_port = port.container_port
+          service_port   = port.service_port
+        } if contains(keys(port), "service_port")
+      ]
       content {
         name        = port.value["name"]
         protocol    = port.value["protocol"]
@@ -520,5 +677,93 @@ resource "kubernetes_service_v1" "deployment" {
         port        = port.value["service_port"]
       }
     }
+  }
+}
+
+resource "kubernetes_network_policy_v1" "deployment" {
+  count = length(var.network_policy_ingress) + length(var.network_policy_egress) > 0 ? 1 : 0
+  metadata {
+    namespace   = var.namespace
+    name        = var.object_prefix
+    labels      = local.common_labels
+    annotations = var.service_annotations
+  }
+  spec {
+    pod_selector {
+      match_labels = local.selector_labels
+    }
+    dynamic "ingress" {
+      for_each = var.network_policy_ingress
+      content {
+        dynamic "ports" {
+          for_each = ingress.value.ports
+          content {
+            port     = ports.value.port
+            protocol = ports.value.protocol
+          }
+        }
+        dynamic "from" {
+          for_each = lookup(ingress.value, "selectors", [])
+          content {
+            dynamic "namespace_selector" {
+              for_each = contains(keys(from.value), "namespace") ? [1] : []
+              content {
+                match_labels = contains(keys(from.value.namespace), "match_expressions") ? null : lookup(from.value.namespace, "match_labels", from.value.namespace)
+              }
+            }
+            dynamic "pod_selector" {
+              for_each = contains(keys(from.value), "pod") ? [1] : []
+              content {
+                match_labels = contains(keys(from.value.pod), "match_expressions") ? null : lookup(from.value.pod, "match_labels", from.value.pod)
+              }
+            }
+            dynamic "ip_block" {
+              for_each = contains(keys(from.value), "ip") ? [1] : []
+              content {
+                cidr   = can(keys(from.value.ip)) ? tostring(from.value.ip.cidr) : tostring(from.value.ip)
+                except = can(keys(from.value.ip)) ? lookup(from.value.ip, "except", null) : null
+              }
+            }
+          }
+        }
+      }
+    }
+    dynamic "egress" {
+      for_each = var.network_policy_egress
+      content {
+        dynamic "ports" {
+          for_each = egress.value.ports
+          content {
+            port     = ports.value.port
+            protocol = ports.value.protocol
+          }
+        }
+        dynamic "to" {
+          for_each = lookup(egress.value, "selectors", [])
+          content {
+            dynamic "namespace_selector" {
+              for_each = contains(keys(to.value), "namespace") ? [1] : []
+              content {
+                match_labels = contains(keys(to.value.namespace), "match_expressions") ? null : lookup(to.value.namespace, "match_labels", to.value.namespace)
+              }
+            }
+            dynamic "pod_selector" {
+              for_each = contains(keys(to.value), "pod") ? [1] : []
+              content {
+                match_labels = contains(keys(to.value.pod), "match_expressions") ? null : lookup(to.value.pod, "match_labels", to.value.pod)
+              }
+            }
+            dynamic "ip_block" {
+              for_each = contains(keys(to.value), "ip") ? [1] : []
+              content {
+                cidr   = can(keys(to.value.ip)) ? tostring(to.value.ip.cidr) : tostring(to.value.ip)
+                except = can(keys(to.value.ip)) ? lookup(to.value.ip, "except", null) : null
+              }
+            }
+          }
+        }
+      }
+    }
+    policy_types = var.network_policy_type
   }
 }

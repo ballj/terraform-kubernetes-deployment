@@ -7,7 +7,7 @@ This terraform module deploys a deployment on kubernetes and adds a service.
 ```
 module "deployment" {
   source              = "ballj/deployment/kubernetes"
-  version             = "~> 1.5.1"
+  version             = "~> 2.4"
   image_name          = "nginx"
   image_tag           = "latest"
   namespace           = "production"
@@ -77,6 +77,7 @@ module "deployment" {
 | `ports`                                        | No       | `[]`             | List of ports to configure - see example           |
 | `service_account_name`                         | No       | `""`             | Service account to attach to the pod               |
 | `subdomain`                                    | No       | `""`             | Subdomain for the pod                              |
+| `service_links`                                | No       | `false`          | Use service links, check kubernetes documentation  |
 | `replicas`                                     | No       | `1`              | Amount of pods to deploy as part of deployment     |
 | `pull_policy`                                  | No       | `IfNotPresent`   | Pull policy for the image                          |
 | `annotations`                                  | No       | `{}`             | Annotations to add to the deployment               |
@@ -173,6 +174,21 @@ module "deployment" {
 | `init_customca_image_pull_policy`           | No       | N/A              | Pull policy for the init volume                    |
 | `init_customca_env_secret`                  | No       | N/A              | Secrets to add into the init container - eg proxy  |
 
+#### Custom User Init Container
+
+Will be automatically enabled if `init_user_image_name` and `init_user_image_tag` are set.
+
+| Variable                            | Required | Default        | Description                                        |
+| ----------------------------------- | -------- | -------------- | -------------------------------------------------- |
+| `init_user_image_name`              | Yes      | `""`           | Image name of the init volume                      |
+| `init_user_image_tag`               | Yes      | `""`           | Tag of the init volume                             |
+| `init_user_command`                 | Yes      | `[]`           | Command to run within the container                |
+| `init_user_image_pull_policy`       | No       | `IfNotPresent` | Pull policy for the init volume                    |
+| `init_user_security_context_uid`    | No       | `1000`         | User to run container as                           |
+| `init_user_security_context_gid`    | No       | `1000`         | Group to run container as                          |
+| `init_user_env`                     | No       | `[]`           | Environment variables for init container           |
+| `init_user_env_secret`              | No       | `[]`           | Secrets to add into the init container - eg proxy  |
+
 ### Service Variables
 
 | Variable                                    | Required | Default          | Description                                        |
@@ -217,7 +233,15 @@ See below for an example.
 | `mounts.read_only`                          | No       | `false`          | Readonly flag for volume mount                     |
 | `mounts.user`                               | No       | N/A              | Sets user for the volume (chown)                   |
 | `mounts.group`                              | No       | N/A              | Sets group for the volume (chgrp)                  |
-| `mounts.permissions`                        | No       | N/A              | Sets permissions for the volume (chmod)            |
+| `mounts.mode`                               | No       | N/A              | Sets permissions for the volume (chmod)            |
+
+### Network Policy Variables
+
+| Variable                                    | Required | Default                 | Description                                 |
+| ------------------------------------------- | -------- | ----------------------- | ------------------------------------------- |
+| `network_policy_type`                       | No       | `["Ingress", "Egress"]` | Direction of network policy                 |
+| `network_policy_ingress`                    | No       | `[]`                    | Ingress policy to apply to deployment       |
+| `network_policy_egress`                     | No       | `[]`                    | Egress policy to apply to deployment        |
 
 ## Persistence
 
@@ -230,24 +254,31 @@ volumes   = [
     name         = "html"
     type         = "persistent_volume_claim"
     object_name  = "nginx"
-    mounts = [{
+    mounts = [{ # This will mount all objects of persistent_volume_claim
       mount_path = "/usr/share/nginx"
     }]
   },
   {
     name         = "config"
-    type         = "persistent_volume_claim"
+    type         = "config_map"
     object_name  = "nginx-config"
-    mounts = [{
-      mount_path = "/etc/nginx"
-      sub_path   = "nginx.conf"
-      read_only  = true
-    },
-    {
-      mount_path = "/etc/nginx"
-      sub_path   = "extra.conf"
-      read_only  = true
-    }]
+    mounts = [
+      { # This will mount only the nginx.conf file
+        mount_path = "/etc/nginx.conf"
+        sub_path   = "nginx.conf"
+        read_only  = true
+      },
+      { # This will mount only the extra.conf file
+        mount_path = "/etc/nginx"
+        sub_path   = "extra.conf"
+        read_only  = true
+      },
+      { # This will mount the config_map key original.conf at mount_path
+        mount_path = "/etc/nginx/rename.conf"
+        sub_path   = "original.conf"
+        mode       = "0400"
+      }
+    ]
   },
   {
     name         = "logs"
@@ -296,7 +327,118 @@ connectivity_check = [
 ]
 ```
 
+## Network Policy
+
+Network policy can be used to restrict network access to and from pods.
+The default behaviour is to use both ingress and egress as soon as a single
+policy is set. This can be controlled with `network_policy_type`.
+
+Some of the fields are multifunctional:
+- selectors.ip can be either a map or a string:
+  - if its a string, its considered a CIDR.
+  - if its a map, it allows cidr and except (similar to Terraform docs)
+- selectors.pod and selectors.namespace can be a map of labels, or a map containing
+  a match_labels variable (match_expressions not implemented yet)
+
+Basic Policy:
+```bash
+  network_policy_ingress = [
+    {
+      ports = [
+        {
+          port     = "80"
+          protocol = "TCP"
+        }
+      ]
+      selectors = [
+        {
+          pod = {
+            match_labels = { "app.kubernetes.io/part-of" = "nw-policy" }
+          }
+        }
+      ]
+    }
+```
+
+Advanced policy:
+```bash
+  network_policy_ingress = [
+    {
+      ports = [
+        {
+          port     = "80"
+          protocol = "TCP"
+        },
+        {
+          port     = "443"
+          protocol = "TCP"
+        }
+      ]
+      selectors = [
+        {
+          pod = {}
+        },
+        {
+          ip = {
+            cidr = "10.0.0.0/8"
+          }
+        },
+        {
+          ip = "192.168.1.0/24"
+        },
+      ]
+    }
+  ]
+  network_policy_egress = [
+    {
+      ports = [
+        {
+          port     = "80"
+          protocol = "TCP"
+        }
+      ]
+      selectors = [{
+        pod = { "app.kubernetes.io/part-of" = "nw-policy" }
+      }]
+    },
+    {
+      ports = [
+        {
+          port     = "53"
+          protocol = "TCP"
+        },
+        {
+          port     = "53"
+          protocol = "UDP"
+        }
+      ]
+      selectors = [{
+        pod       = { "app.kubernetes.io/part-of" = "nw-policy" }
+        namespace = { "kubernetes.io/metadata.name" = "apps" }
+      }]
+    }
+  ]
+  network_policy_type = ["Ingress", "Egress"]
+```
+
 ## Notes
 
 Variable `volumes` and `ports` does not have its type set as this requires [Optional Object Type Attributes](https://www.terraform.io/docs/language/expressions/type-constraints.html#experimental-optional-object-type-attributes)
 to work correctly. This feature is currently experimental and so it not used at the moment.
+
+## Upgrades
+
+### v2.0.0
+
+Change to v1 resource naming. This requires old resources be manually deleted
+unless the object_prefix is changed. If this is not done Terraform will error
+as the name already exists.
+
+Changed service links to disabled by default. Change `service_links` = `true`
+for old behaviour.
+
+### v2.4.0
+
+Changed the volume naming slightly. `permissions` has been renamed to `mode` to be
+more consistent with the Kubernetes documentation. `permissions` will continue to
+work until it is removed in the `v3.0.0` version.
