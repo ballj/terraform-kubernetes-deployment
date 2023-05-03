@@ -728,3 +728,9 @@ variable "network_policy_type" {
   description = "Direction of network policy"
   default     = ["Ingress", "Egress"]
 }
+
+variable "node_selector" {
+  type        = map(string)
+  default     = {}
+  description = "Node selector to use for the deployment"
+}
