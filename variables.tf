@@ -52,12 +52,6 @@ variable "labels" {
   default     = {}
 }
 
-variable "template_labels" {
-  type        = map(string)
-  description = "Labels to add to the pod template only"
-  default     = {}
-}
-
 variable "service_account_name" {
   type        = string
   description = "Service account name to add to the pod"

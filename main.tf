@@ -56,7 +56,7 @@ resource "kubernetes_deployment_v1" "deployment" {
     }
     template {
       metadata {
-        labels      = merge(local.selector_labels, var.template_labels)
+        labels      = local.selector_labels
         annotations = var.template_annotations
       }
       spec {
