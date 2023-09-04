@@ -81,7 +81,7 @@ resource "kubernetes_deployment_v1" "deployment" {
                   var.security_context_enabled ? format("%s %s:%s %s", "/bin/chown -R", lookup(vol_mount, "user", var.security_context_uid), lookup(vol_mount, "group", var.security_context_gid), vol_mount.mount_path) : "",
                   contains(keys(vol_mount), "permissions") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
                   contains(keys(vol_mount), "mode") ? format("%s %s %s", "/bin/chmod", vol_mount.permissions, vol_mount.mount_path) : "",
-                  contains(keys(vol_mount), "user") ? format("%s %s %s", "/bin/chown", vol_mount.owner, vol_mount.mount_path) : "",
+                  contains(keys(vol_mount), "user") ? format("%s %s %s", "/bin/chown", vol_mount.user, vol_mount.mount_path) : "",
                   contains(keys(vol_mount), "group") ? format("%s %s %s", "/bin/chgrp", vol_mount.group, vol_mount.mount_path) : ""] if alltrue([
                     volume.type != "config_map",
                     volume.type != "secret"
