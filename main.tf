@@ -194,6 +194,7 @@ resource "kubernetes_deployment_v1" "deployment" {
               run_as_group = var.init_user_security_context_gid
             }
             command = var.init_user_command
+            args    = var.init_user_args
             dynamic "env" {
               for_each = [
                 for env_var in var.init_user_env_secret : {
@@ -283,8 +284,8 @@ resource "kubernetes_deployment_v1" "deployment" {
                         value = http_header.value["value"]
                       }
                     }
-                    path   = var.post_start_path
-                    port   = var.post_start_port > 0 ? var.post_start_port : lookup({
+                    path = var.post_start_path
+                    port = var.post_start_port > 0 ? var.post_start_port : lookup({
                       for port in var.ports :lower(port.name) => port.container_port
                     }, lower(var.post_start_scheme), var.ports[0].container_port)
                     scheme = var.post_start_scheme
@@ -405,8 +406,8 @@ resource "kubernetes_deployment_v1" "deployment" {
                       value = http_header.value["value"]
                     }
                   }
-                  path   = var.readiness_probe_path
-                  port   = var.readiness_probe_port > 0 ? var.readiness_probe_port : lookup({
+                  path = var.readiness_probe_path
+                  port = var.readiness_probe_port > 0 ? var.readiness_probe_port : lookup({
                     for port in var.ports :lower(port.name) => port.container_port
                   }, lower(var.readiness_probe_scheme), var.ports[0].container_port)
                   scheme = var.readiness_probe_scheme
@@ -445,8 +446,8 @@ resource "kubernetes_deployment_v1" "deployment" {
                       value = http_header.value["value"]
                     }
                   }
-                  path   = var.liveness_probe_path
-                  port   = var.liveness_probe_port > 0 ? var.liveness_probe_port : lookup({
+                  path = var.liveness_probe_path
+                  port = var.liveness_probe_port > 0 ? var.liveness_probe_port : lookup({
                     for port in var.ports :lower(port.name) => port.container_port
                   }, lower(var.liveness_probe_scheme), var.ports[0].container_port)
                   scheme = var.liveness_probe_scheme
@@ -485,8 +486,8 @@ resource "kubernetes_deployment_v1" "deployment" {
                       value = http_header.value["value"]
                     }
                   }
-                  path   = var.startup_probe_path
-                  port   = var.startup_probe_port > 0 ? var.startup_probe_port : lookup({
+                  path = var.startup_probe_path
+                  port = var.startup_probe_port > 0 ? var.startup_probe_port : lookup({
                     for port in var.ports :lower(port.name) => port.container_port
                   }, lower(var.startup_probe_scheme), var.ports[0].container_port)
                   scheme = var.startup_probe_scheme
@@ -660,7 +661,7 @@ resource "kubernetes_service_v1" "deployment" {
     external_traffic_policy = contains([
       "LoadBalancer", "NodePort"
     ], var.service_type) ? var.service_traffic_policy : null
-    load_balancer_ip        = length(var.service_loadbalancer_ip) > 0 ? var.service_loadbalancer_ip : null
+    load_balancer_ip = length(var.service_loadbalancer_ip) > 0 ? var.service_loadbalancer_ip : null
     dynamic "port" {
       for_each = [
         for port in var.ports : {
