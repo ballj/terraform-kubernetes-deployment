@@ -666,6 +666,12 @@ variable "init_user_command" {
   default     = []
 }
 
+variable "init_user_arguments" {
+  # type        = list(string)
+  description = "Arguments to run within init container"
+  default     = []
+}
+
 variable "init_user_image_pull_policy" {
   type        = string
   description = "Pull policy to use for the init container"

@@ -169,6 +169,7 @@ resource "kubernetes_deployment_v1" "deployment" {
               run_as_group = var.init_user_security_context_gid
             }
             command = var.init_user_command
+            args    = var.init_user_arguments
             dynamic "env" {
               for_each = [for env_var in var.init_user_env_secret : {
                 name   = env_var.name

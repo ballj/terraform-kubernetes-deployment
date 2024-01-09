@@ -183,6 +183,7 @@ Will be automatically enabled if `init_user_image_name` and `init_user_image_tag
 | `init_user_image_name`              | Yes      | `""`           | Image name of the init volume                      |
 | `init_user_image_tag`               | Yes      | `""`           | Tag of the init volume                             |
 | `init_user_command`                 | Yes      | `[]`           | Command to run within the container                |
+| `init_user_arguments`               | Yes      | `[]`           | Arguments to run within the container              |
 | `init_user_image_pull_policy`       | No       | `IfNotPresent` | Pull policy for the init volume                    |
 | `init_user_security_context_uid`    | No       | `1000`         | User to run container as                           |
 | `init_user_security_context_gid`    | No       | `1000`         | Group to run container as                          |
